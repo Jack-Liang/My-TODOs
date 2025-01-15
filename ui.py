@@ -524,6 +524,19 @@ class SettingsPanel(ThemedOptionCardPlane):
         self.donation.addWidget(self.button_donation)
         self.donation.addPlaceholder(16)
 
+        # 添加退出按钮 (在赞助按钮之后)
+        self.exit_option = SingleSettingOption(self)
+        self.exit_option.setTitle("退出程序", "关闭待办事项程序")
+
+        self.button_exit = SiSimpleButton(self)
+        self.button_exit.setFixedHeight(32)
+        self.button_exit.attachment().setText("退出程序")
+        self.button_exit.clicked.connect(QCoreApplication.quit)
+        self.button_exit.adjustSize()
+
+        self.exit_option.addWidget(self.button_exit)
+        self.exit_option.addPlaceholder(16)
+
         # SiliconUI
         self.silicon_ui = SiDenseVContainer(self)
         self.silicon_ui.setAlignCenter(True)
@@ -544,6 +557,7 @@ class SettingsPanel(ThemedOptionCardPlane):
         self.body().addWidget(self.license)
         self.body().addWidget(self.about)
         self.body().addWidget(self.donation)
+        self.body().addWidget(self.exit_option)
         self.body().addWidget(self.silicon_ui)
         self.body().addPlaceholder(16)
 
@@ -556,6 +570,7 @@ class SettingsPanel(ThemedOptionCardPlane):
         self.button_github.setColor(SiGlobal.siui.colors["SIMPLE_BUTTON_BG"])
         self.button_bilibili.setColor(SiGlobal.siui.colors["SIMPLE_BUTTON_BG"])
         self.button_donation.setColor(SiGlobal.siui.colors["SIMPLE_BUTTON_BG"])
+        self.button_exit.setColor(SiGlobal.siui.colors["SIMPLE_BUTTON_BG"])
         self.button_silicon_ui.attachment().setStyleSheet("color: {}".format(SiGlobal.siui.colors["TEXT_E"]))
 
     def showEvent(self, a0):
