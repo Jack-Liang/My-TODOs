@@ -427,7 +427,7 @@ class AddNewTODOPanel(ThemedOptionCardPlane):
 class SettingsPanel(ThemedOptionCardPlane):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
+        
         self.setTitle("设置")
         self.setUseSignals(True)
 
@@ -459,72 +459,12 @@ class SettingsPanel(ThemedOptionCardPlane):
         self.fix_position.addWidget(self.button_fix_position)
         self.fix_position.addPlaceholder(16)
 
-        # 第三方资源
-        self.third_party_res = SingleSettingOption(self)
-        self.third_party_res.setTitle("第三方资源", "本项目使用了 FlatIcon 提供的图标")
-
-        self.button_to_flaticon = SiSimpleButton(self)
-        self.button_to_flaticon.setFixedHeight(32)
-        self.button_to_flaticon.attachment().setText("前往 FlatIcon")
-        self.button_to_flaticon.clicked.connect(lambda: os.system("start https://flaticon.com/"))
-        self.button_to_flaticon.adjustSize()
-
-        self.third_party_res.addWidget(self.button_to_flaticon)
-        self.third_party_res.addPlaceholder(16)
-
-        # 许可
-        self.license = SingleSettingOption(self)
-        self.license.setTitle("开源许可证", "本项目采用 GNU General Public License v3.0")
-
-        self.button_license = SiSimpleButton(self)
-        self.button_license.setFixedHeight(32)
-        self.button_license.attachment().setText("在 Github 上查看")
-        self.button_license.clicked.connect(
-            lambda: os.system("start https://github.com/ChinaIceF/My-TODOs/blob/main/LICENSE"))
-        self.button_license.adjustSize()
-
-        self.license.addWidget(self.button_license)
-        self.license.addPlaceholder(16)
-
-        # 关于
-        self.about = SingleSettingOption(self)
-        self.about.setTitle("关于此软件", "制作者 霏泠Ice 保留所有权利")
-
-        about_button_set = SiDenseHContainer(self)
-        about_button_set.setFixedHeight(32)
-
-        self.button_github = SiSimpleButton(self)
-        self.button_github.setFixedHeight(32)
-        self.button_github.attachment().setText("Github 主页")
-        self.button_github.clicked.connect(lambda: os.system("start https://github.com/ChinaIceF"))
-        self.button_github.adjustSize()
-
-        self.button_bilibili = SiSimpleButton(self)
-        self.button_bilibili.setFixedHeight(32)
-        self.button_bilibili.attachment().setText("哔哩哔哩 主页")
-        self.button_bilibili.clicked.connect(lambda: os.system("start https://space.bilibili.com/390832893"))
-        self.button_bilibili.adjustSize()
-
-        about_button_set.addWidget(self.button_github)
-        about_button_set.addWidget(self.button_bilibili)
-
-        self.about.addWidget(about_button_set)
-        self.about.addPlaceholder(16)
-
-        # 赞助
-        self.donation = SingleSettingOption(self)
-        self.donation.setTitle("赞助作者", "为爱发电，您的支持是我最大的动力")
-
-        self.button_donation = SiSimpleButton(self)
-        self.button_donation.setFixedHeight(32)
-        self.button_donation.attachment().setText("在 Github 上扫码赞助")
-        self.button_donation.clicked.connect(lambda: os.system("start https://github.com/ChinaIceF/My-TODOs?tab=readme-ov-file#%E8%B5%9E%E5%8A%A9"))
-        self.button_donation.adjustSize()
-
-        self.donation.addWidget(self.button_donation)
-        self.donation.addPlaceholder(16)
-
-        # 添加退出按钮 (在赞助按钮之后)
+        # 添加到body (只添加需要保留的选项)
+        self.body().setAdjustWidgetsSize(True)
+        self.body().addWidget(self.use_dark_mode)
+        self.body().addWidget(self.fix_position)
+        
+        # 添加退出按钮
         self.exit_option = SingleSettingOption(self)
         self.exit_option.setTitle("退出程序", "关闭待办事项程序")
 
@@ -537,41 +477,17 @@ class SettingsPanel(ThemedOptionCardPlane):
         self.exit_option.addWidget(self.button_exit)
         self.exit_option.addPlaceholder(16)
 
-        # SiliconUI
-        self.silicon_ui = SiDenseVContainer(self)
-        self.silicon_ui.setAlignCenter(True)
-
-        self.button_silicon_ui = SiSimpleButton(self)
-        self.button_silicon_ui.attachment().setFont(SiGlobal.siui.fonts["S_NORMAL"])
-        self.button_silicon_ui.attachment().setText("基于 PyQt-SiliconUI 编写")
-        self.button_silicon_ui.adjustSize()
-        self.button_silicon_ui.clicked.connect(lambda: os.system("start https://github.com/ChinaIceF/PyQt-SiliconUI"))
-
-        self.silicon_ui.addWidget(self.button_silicon_ui)
-
         # 添加到body
         self.body().setAdjustWidgetsSize(True)
-        self.body().addWidget(self.use_dark_mode)
-        self.body().addWidget(self.fix_position)
-        self.body().addWidget(self.third_party_res)
-        self.body().addWidget(self.license)
-        self.body().addWidget(self.about)
-        self.body().addWidget(self.donation)
         self.body().addWidget(self.exit_option)
-        self.body().addWidget(self.silicon_ui)
         self.body().addPlaceholder(16)
 
     def reloadStyleSheet(self):
         self.setThemeColor(SiGlobal.siui.colors["PANEL_THEME"])
         super().reloadStyleSheet()
 
-        self.button_to_flaticon.setColor(SiGlobal.siui.colors["SIMPLE_BUTTON_BG"])
-        self.button_license.setColor(SiGlobal.siui.colors["SIMPLE_BUTTON_BG"])
-        self.button_github.setColor(SiGlobal.siui.colors["SIMPLE_BUTTON_BG"])
-        self.button_bilibili.setColor(SiGlobal.siui.colors["SIMPLE_BUTTON_BG"])
-        self.button_donation.setColor(SiGlobal.siui.colors["SIMPLE_BUTTON_BG"])
+        # 只保留退出按钮的样式设置
         self.button_exit.setColor(SiGlobal.siui.colors["SIMPLE_BUTTON_BG"])
-        self.button_silicon_ui.attachment().setStyleSheet("color: {}".format(SiGlobal.siui.colors["TEXT_E"]))
 
     def showEvent(self, a0):
         super().showEvent(a0)
@@ -585,8 +501,11 @@ class TODOApplication(QMainWindow):
         # 窗口周围留白，供阴影使用
         self.padding = 48
         self.anchor = QPoint(self.x(), self.y())
-        self.fixed_position = QPoint(SiGlobal.todo_list.settings_parser.options["FIXED_POSITION_X"],
-                                     SiGlobal.todo_list.settings_parser.options["FIXED_POSITION_Y"])
+        
+        # 获取保存的位置，如果没有则使用默认位置（左上角）
+        saved_x = SiGlobal.todo_list.settings_parser.options.get("FIXED_POSITION_X", 0)
+        saved_y = SiGlobal.todo_list.settings_parser.options.get("FIXED_POSITION_Y", 0)
+        self.fixed_position = QPoint(saved_x, saved_y)
 
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)  # 设置窗口背景透明
@@ -714,6 +633,14 @@ class TODOApplication(QMainWindow):
             self.todo_list_panel.resize(self.todo_list_panel.width(), 0)
 
     def _onAddTODOButtonToggled(self, state):
+        # 如果打开添加待办面板，则关闭设置面板
+        if state is True:
+            # 如果打开添加待办面板，则关闭设置面板
+            self.header_panel.settings_button.setChecked(False)
+            self.settings_panel_placeholder.setFixedHeight(0)
+            self.settings_panel.resize(self.settings_panel.width(), 0)
+        
+        # 原有的显示/隐藏添加待办面板的代码
         if state is True:
             self.add_todo_panel_placeholder.setFixedHeight(12)
             self.add_todo_panel.adjustSize()
@@ -722,6 +649,13 @@ class TODOApplication(QMainWindow):
             self.add_todo_panel.resize(self.add_todo_panel.width(), 0)
 
     def _onSettingsButtonToggled(self, state):
+        # 如果打开设置面板，则关闭添加待办面板
+        if state is True:
+            self.header_panel.add_todo_button.setChecked(False)
+            self.add_todo_panel_placeholder.setFixedHeight(0)
+            self.add_todo_panel.resize(self.add_todo_panel.width(), 0)
+
+        # 原有的显示/隐藏设置面板的代码
         if state is True:
             self.settings_panel_placeholder.setFixedHeight(12)
             self.settings_panel.adjustSize()
@@ -788,17 +722,35 @@ class TODOApplication(QMainWindow):
             self.moveTo(self.fixed_position.x(), self.fixed_position.y())
 
     def closeEvent(self, a0):
-        super().closeEvent(a0)
+        try:
+            # 获取当前待办，并写入 todos.ini
+            todos = [widget.text_label.text() for widget in self.todo_list_panel.body().widgets_top]
+            print("待保存的待办事项:", todos)  # 调试信息
+            print("待办事项数量:", len(todos))  # 调试信息
+            
+            SiGlobal.todo_list.todos_parser.todos = todos
+            print("Parser中的待办事项:", SiGlobal.todo_list.todos_parser.todos)  # 调试信息
+            print("Parser中待办事项数量:", len(SiGlobal.todo_list.todos_parser.todos))  # 调试信息
+            
+            SiGlobal.todo_list.todos_parser.write()
+            
+            # 验证文件是否写入
+            try:
+                with open("./todos.ini", "r", encoding="utf-8") as f:
+                    content = f.read()
+                    print("文件内容:", content)  # 调试信息
+            except Exception as e:
+                print("读取文件失败:", str(e))  # 调试信息
 
-        # 获取当前待办，并写入 todos.ini
-        todos = [widget.text_label.text() for widget in self.todo_list_panel.body().widgets_top]
-        SiGlobal.todo_list.todos_parser.todos = todos
-        SiGlobal.todo_list.todos_parser.write()
+            # 写入设置到 options.ini
+            SiGlobal.todo_list.settings_parser.modify("FIXED_POSITION_X", self.fixed_position.x())
+            SiGlobal.todo_list.settings_parser.modify("FIXED_POSITION_Y", self.fixed_position.y())
+            SiGlobal.todo_list.settings_parser.write()
 
-        # 写入设置到 options.ini
-        SiGlobal.todo_list.settings_parser.modify("FIXED_POSITION_X", self.fixed_position.x())
-        SiGlobal.todo_list.settings_parser.modify("FIXED_POSITION_Y", self.fixed_position.y())
-        SiGlobal.todo_list.settings_parser.write()
-
-        SiGlobal.siui.windows["TOOL_TIP"].close()
-        QCoreApplication.quit()
+            # 在保存完数据后再调用父类的 closeEvent
+            super().closeEvent(a0)
+            
+            SiGlobal.siui.windows["TOOL_TIP"].close()
+            QCoreApplication.quit()
+        except Exception as e:
+            print(f"关闭事件处理出错: {str(e)}")  # 调试错误
