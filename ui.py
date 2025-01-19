@@ -165,23 +165,55 @@ class SingleTODOOption(SiDenseHContainer):
 
         self.move = self.moveTo
 
+        # 添加索引属性，用于跟踪待办事项在列表中的位置
+        self.todo_index = -1
+        
         # 初始化时自动载入样式表
         self.reloadStyleSheet()
+
+    def _onChecked(self, state):
+        """处理复选框状态改变事件"""
+        print(f"\n=== 待办事项状态改变 ===")
+        print(f"索引: {self.todo_index}")
+        print(f"文本: {self.text_label.text()}")
+        print(f"状态: {'已完成' if state else '未完成'}")
+        
+        # 更新待办事项状态
+        if self.todo_index >= 0:
+            SiGlobal.todo_list.todos_parser.set_done(self.todo_index, state)
+            # 更新文本样式
+            if state:
+                self.text_label.setFixedStyleSheet("padding-top: 2px; padding-bottom: 2px; text-decoration: line-through; color: gray")
+            else:
+                self.text_label.setFixedStyleSheet("padding-top: 2px; padding-bottom: 2px")
+            
+            # 立即保存到文件
+            try:
+                SiGlobal.todo_list.todos_parser.write()
+                print("待办事项状态已保存到文件")
+            except Exception as e:
+                print(f"保存待办事项状态时出错: {str(e)}")
+        
+        print("=== 状态更新完成 ===\n")
+
+    def setText(self, text: str, done: bool = False, index: int = -1):
+        """设置待办事项文本和状态"""
+        self.text_label.setText(text)
+        self.todo_index = index
+        # 设置复选框状态但不触发信号
+        self.check_box.blockSignals(True)
+        self.check_box.setChecked(done)
+        self.check_box.blockSignals(False)
+        # 更新文本样式
+        if done:
+            self.text_label.setFixedStyleSheet("padding-top: 2px; padding-bottom: 2px; text-decoration: line-through; color: gray")
+        else:
+            self.text_label.setFixedStyleSheet("padding-top: 2px; padding-bottom: 2px")
 
     def reloadStyleSheet(self):
         super().reloadStyleSheet()
 
         self.text_label.setStyleSheet("color: {}".format(SiGlobal.siui.colors["TEXT_B"]))
-
-    def _onChecked(self, state):
-        if state is True:
-            SiGlobal.todo_list.delete_pile.append(self)
-        else:
-            index = SiGlobal.todo_list.delete_pile.index(self)
-            SiGlobal.todo_list.delete_pile.pop(index)
-
-    def setText(self, text: str):
-        self.text_label.setText(text)
 
     def adjustSize(self):
         self.setFixedHeight(self.text_label.height())
@@ -280,6 +312,21 @@ class TODOListPanel(ThemedOptionCardPlane):
         self.setTitle("全部待办")
         self.setUseSignals(True)
 
+        # 添加分组标签
+        self.pending_label = SiLabel(self)
+        self.pending_label.setFont(SiGlobal.siui.fonts["S_BOLD"])
+        self.pending_label.setText("待办事项")
+        self.pending_label.setAutoAdjustSize(True)
+        self.pending_label.setAlignment(Qt.AlignLeft)
+        self.pending_label.hide()
+
+        self.completed_label = SiLabel(self)
+        self.completed_label.setFont(SiGlobal.siui.fonts["S_BOLD"])
+        self.completed_label.setText("已完成")
+        self.completed_label.setAutoAdjustSize(True)
+        self.completed_label.setAlignment(Qt.AlignLeft)
+        self.completed_label.hide()
+
         self.no_todo_label = SiLabel(self)
         self.no_todo_label.setAttribute(Qt.WA_TransparentForMouseEvents)
         self.no_todo_label.setAutoAdjustSize(True)
@@ -306,37 +353,151 @@ class TODOListPanel(ThemedOptionCardPlane):
         SiGlobal.todo_list.addTODO = self.addTODO
 
     def updateTODOAmount(self):
-        todo_amount = len(self.body().widgets_top)
-        self.todoAmountChanged.emit(todo_amount)
+        """更新待办事项数量"""
+        pending_count = 0
+        completed_count = 0
+        for widget in self.body().widgets_top:
+            if isinstance(widget, SingleTODOOption):
+                if widget.check_box.isChecked():
+                    completed_count += 1
+                else:
+                    pending_count += 1
 
-        if todo_amount == 0:
-            self.no_todo_label.show()
+        # 只发送未完成的待办事项数量
+        self.todoAmountChanged.emit(pending_count)
+        
+        # 更新标题显示
+        if pending_count + completed_count == 0:
+            self.setTitle("全部待办")
         else:
+            self.setTitle(f"{pending_count}个待办事项")
+
+        # 显示或隐藏分组标签
+        if pending_count + completed_count > 0:
+            if pending_count > 0:
+                self.pending_label.show()
+            else:
+                self.pending_label.hide()
+            
+            if completed_count > 0:
+                self.completed_label.show()
+            else:
+                self.completed_label.hide()
+            
             self.no_todo_label.hide()
+        else:
+            self.pending_label.hide()
+            self.completed_label.hide()
+            self.no_todo_label.show()
 
     def reloadStyleSheet(self):
         self.setThemeColor(SiGlobal.siui.colors["PANEL_THEME"])
         super().reloadStyleSheet()
-
-        self.no_todo_label.setStyleSheet("color: {}".format(SiGlobal.siui.colors["TEXT_E"]))
         self.complete_all_button.attachment().load(SiGlobal.siui.icons["fi-rr-list-check"])
 
     def _onCompleteAllButtonClicked(self):
+        """处理"全部完成"按钮点击事件"""
+        print("\n=== 标记所有待办事项为完成 ===")
         for obj in self.body().widgets_top:
-            if isinstance(obj, SingleTODOOption):
+            if isinstance(obj, SingleTODOOption) and not obj.check_box.isChecked():
                 obj.check_box.setChecked(True)
+        self._reorderTodoItems()  # 重新排序
+        print("=== 完成 ===\n")
 
-    def addTODO(self, text):
+    def _reorderTodoItems(self):
+        """重新排序待办事项，未完成的在上方，已完成的在下方"""
+        print("\n=== 重新排序待办事项 ===")
+        
+        # 收集所有待办事项部件
+        pending_items = []
+        completed_items = []
+        
+        # 从body中移除所有待办事项
+        widgets = self.body().widgets_top.copy()
+        for widget in widgets:
+            if isinstance(widget, SingleTODOOption):
+                self.body().removeWidget(widget)
+                if widget.check_box.isChecked():
+                    completed_items.append(widget)
+                else:
+                    pending_items.append(widget)
+            elif widget in [self.pending_label, self.completed_label, self.no_todo_label]:
+                self.body().removeWidget(widget)
+        
+        # 添加未完成分组
+        if pending_items:
+            self.body().addWidget(self.pending_label)
+            for item in pending_items:
+                self.body().addWidget(item)
+                item.show()
+        
+        # 添加已完成分组
+        if completed_items:
+            self.body().addWidget(self.completed_label)
+            for item in completed_items:
+                self.body().addWidget(item)
+                item.show()
+        
+        # 如果没有待办事项，显示提示
+        if not pending_items and not completed_items:
+            self.body().addWidget(self.no_todo_label)
+            self.no_todo_label.show()
+        
+        print(f"待办事项: {len(pending_items)}个")
+        print(f"已完成: {len(completed_items)}个")
+        print("=== 排序完成 ===\n")
+        
+        # 更新显示
+        self.updateTODOAmount()
+        if SiGlobal.todo_list.todo_list_unfold_button.isChecked():
+            self.adjustSize()
+
+    def addTODO(self, text, done=False, index=-1):
+        """添加新的待办事项"""
+        print(f"\n=== 添加新待办事项 ===")
+        print(f"文本: {text}")
+        print(f"状态: {'已完成' if done else '未完成'}")
+        print(f"索引: {index}")
+
+        # 创建新的待办事项
         new_todo = SingleTODOOption(self)
-        self.body().addWidget(new_todo)
-
-        new_todo.setText(text)
+        new_todo.setText(text, done, index)
+        new_todo.check_box.toggled.connect(lambda state: self._reorderTodoItems())
+        
+        # 先添加到界面
+        if done:
+            # 如果是已完成的，确保"已完成"标签存在
+            if self.completed_label not in self.body().widgets_top:
+                self.body().addWidget(self.completed_label)
+            self.completed_label.show()
+            self.body().addWidget(new_todo)
+        else:
+            # 如果是未完成的，确保"待办事项"标签存在
+            if self.pending_label not in self.body().widgets_top:
+                self.body().addWidget(self.pending_label)
+            self.pending_label.show()
+            self.body().addWidget(new_todo)
+        
+        # 显示新添加的待办事项
         new_todo.show()
         new_todo.adjustSize()
-
+        
+        # 隐藏"没有待办"提示
+        self.no_todo_label.hide()
+        
+        # 重新排序所有待办事项
+        self._reorderTodoItems()
+        
+        # 更新界面
         SiGlobal.todo_list.todo_list_unfold_button.setChecked(True)
         self.adjustSize()
         self.updateTODOAmount()
+        
+        print("=== 添加完成 ===\n")
+
+    def showEvent(self, a0):
+        super().showEvent(a0)
+        self._reorderTodoItems()  # 显示时重新排序
 
     def adjustSize(self):
         self.body().adjustSize()
@@ -344,21 +505,6 @@ class TODOListPanel(ThemedOptionCardPlane):
 
     def leaveEvent(self, event):
         super().leaveEvent(event)
-
-        for index, obj in enumerate(SiGlobal.todo_list.delete_pile):
-            self.body().removeWidget(obj)
-            obj.close()
-
-        SiGlobal.todo_list.delete_pile = []
-
-        if SiGlobal.todo_list.todo_list_unfold_button.isChecked() is True:
-            self.adjustSize()
-            self.updateTODOAmount()
-
-    def showEvent(self, a0):
-        super().showEvent(a0)
-        self.updateTODOAmount()
-        self.setForceUseAnimations(True)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -471,7 +617,7 @@ class SettingsPanel(ThemedOptionCardPlane):
         self.button_exit = SiSimpleButton(self)
         self.button_exit.setFixedHeight(32)
         self.button_exit.attachment().setText("退出程序")
-        self.button_exit.clicked.connect(QCoreApplication.quit)
+        self.button_exit.clicked.connect(self._onExitButtonClicked)
         self.button_exit.adjustSize()
 
         self.exit_option.addWidget(self.button_exit)
@@ -481,6 +627,18 @@ class SettingsPanel(ThemedOptionCardPlane):
         self.body().setAdjustWidgetsSize(True)
         self.body().addWidget(self.exit_option)
         self.body().addPlaceholder(16)
+
+    def _onExitButtonClicked(self):
+        """处理退出按钮点击事件"""
+        print("退出按钮被点击")
+        # 获取主窗口并调用其 close 方法
+        main_window = SiGlobal.siui.windows.get("MAIN_WINDOW")
+        if main_window:
+            print("正在关闭主窗口...")
+            main_window.close()  # 这会触发 closeEvent
+        else:
+            print("未找到主窗口，直接退出")
+            QCoreApplication.quit()
 
     def reloadStyleSheet(self):
         self.setThemeColor(SiGlobal.siui.colors["PANEL_THEME"])
@@ -600,9 +758,13 @@ class TODOApplication(QMainWindow):
         SiGlobal.siui.reloadAllWindowsStyleSheet()
 
         # 读取 todos.ini 添加到待办
-        for todo in SiGlobal.todo_list.todos_parser.todos:
-            self.todo_list_panel.addTODO(todo)
-
+        print("\n=== 开始加载待办事项 ===")
+        todos = SiGlobal.todo_list.todos_parser.todos
+        print(f"从文件读取到 {len(todos)} 个待办事项")
+        for index, todo in enumerate(todos):
+            print(f"添加待办事项: {todo}")
+            self.todo_list_panel.addTODO(todo["text"], todo["done"], index)
+        print("=== 加载完成 ===\n")
 
     def adjustSize(self):
         h = (self.header_panel.height() + 12 +
@@ -721,36 +883,88 @@ class TODOApplication(QMainWindow):
         if SiGlobal.todo_list.position_locked is True:
             self.moveTo(self.fixed_position.x(), self.fixed_position.y())
 
-    def closeEvent(self, a0):
+    def _saveTodos(self):
+        """保存待办事项到文件"""
         try:
+            print("\n=== 开始保存待办事项 ===")
             # 获取当前待办，并写入 todos.ini
-            todos = [widget.text_label.text() for widget in self.todo_list_panel.body().widgets_top]
-            print("待保存的待办事项:", todos)  # 调试信息
-            print("待办事项数量:", len(todos))  # 调试信息
+            todos = []
+            widgets = self.todo_list_panel.body().widgets_top
+            print(f"找到的部件数量: {len(widgets)}")
             
+            for index, widget in enumerate(widgets):
+                if hasattr(widget, 'text_label'):
+                    text = widget.text_label.text()
+                    done = widget.check_box.isChecked()
+                    todos.append({"text": text, "done": done})
+                    print(f"添加待办事项: {text}")
+                else:
+                    print(f"警告：部件没有 text_label 属性: {type(widget)}")
+            
+            print(f"\n待保存的待办事项: {todos}")
+            print(f"待办事项数量: {len(todos)}")
+            
+            # 确保路径是绝对路径
+            import os
+            todos_file = os.path.abspath("./todos.ini")
+            print(f"待办文件路径: {todos_file}")
+            
+            # 更新并保存
             SiGlobal.todo_list.todos_parser.todos = todos
-            print("Parser中的待办事项:", SiGlobal.todo_list.todos_parser.todos)  # 调试信息
-            print("Parser中待办事项数量:", len(SiGlobal.todo_list.todos_parser.todos))  # 调试信息
+            print(f"Parser中的待办事项: {SiGlobal.todo_list.todos_parser.todos}")
+            print(f"Parser中待办事项数量: {len(SiGlobal.todo_list.todos_parser.todos)}")
             
             SiGlobal.todo_list.todos_parser.write()
             
             # 验证文件是否写入
             try:
-                with open("./todos.ini", "r", encoding="utf-8") as f:
+                with open(todos_file, "r", encoding="utf-8") as f:
                     content = f.read()
-                    print("文件内容:", content)  # 调试信息
+                    print(f"\n文件内容:\n{content}")
+                    print(f"文件大小: {len(content)} 字节")
             except Exception as e:
-                print("读取文件失败:", str(e))  # 调试信息
+                print(f"读取文件失败: {str(e)}")
 
-            # 写入设置到 options.ini
-            SiGlobal.todo_list.settings_parser.modify("FIXED_POSITION_X", self.fixed_position.x())
-            SiGlobal.todo_list.settings_parser.modify("FIXED_POSITION_Y", self.fixed_position.y())
-            SiGlobal.todo_list.settings_parser.write()
-
-            # 在保存完数据后再调用父类的 closeEvent
-            super().closeEvent(a0)
-            
-            SiGlobal.siui.windows["TOOL_TIP"].close()
-            QCoreApplication.quit()
+            print("=== 保存完成 ===\n")
+            return True
         except Exception as e:
-            print(f"关闭事件处理出错: {str(e)}")  # 调试错误
+            import traceback
+            print(f"保存待办事项时出错:")
+            print(traceback.format_exc())
+            return False
+
+    def closeEvent(self, a0):
+        """处理窗口关闭事件"""
+        try:
+            print("正在处理关闭事件...")
+            
+            # 保存待办事项
+            if self._saveTodos():
+                print("待办事项保存成功")
+            else:
+                print("警告：待办事项保存失败")
+            
+            # 保存窗口位置
+            try:
+                SiGlobal.todo_list.settings_parser.modify("FIXED_POSITION_X", self.fixed_position.x())
+                SiGlobal.todo_list.settings_parser.modify("FIXED_POSITION_Y", self.fixed_position.y())
+                SiGlobal.todo_list.settings_parser.write()
+                print("窗口位置保存成功")
+            except Exception as e:
+                print(f"保存窗口位置失败: {str(e)}")
+
+            # 关闭工具提示窗口
+            if "TOOL_TIP" in SiGlobal.siui.windows:
+                SiGlobal.siui.windows["TOOL_TIP"].close()
+            
+            # 调用父类的 closeEvent
+            super().closeEvent(a0)
+            print("窗口已关闭")
+            
+        except Exception as e:
+            import traceback
+            print(f"关闭事件处理出错:")
+            print(traceback.format_exc())
+        finally:
+            # 确保程序退出
+            QCoreApplication.quit()
